@@ -37,7 +37,8 @@ class TypesenseIndexer
         $collection = $this->getCollectionName($entity);
         $data       = $this->transformer->convert($entity);
 
-        $this->documentsToIndex[] = [$collection, $data];
+        $this->documentsToIndex[$collection] ??= [];
+        $this->documentsToIndex[$collection][] = $data;
     }
 
     public function postUpdate(LifecycleEventArgs $args)
@@ -56,7 +57,8 @@ class TypesenseIndexer
         $collection = $this->getCollectionName($entity);
         $data       = $this->transformer->convert($entity);
 
-        $this->documentsToUpdate[] = [$collection, $data['id'], $data];
+        $this->documentsToUpdate[$collection] ??= [];
+        $this->documentsToUpdate[$collection][] = $data;
     }
 
     private function checkPrimaryKeyExists($collectionConfig)
@@ -109,16 +111,15 @@ class TypesenseIndexer
 
     private function indexDocuments()
     {
-        foreach ($this->documentsToIndex as $documentToIndex) {
-            $this->documentManager->index(...$documentToIndex);
+        foreach ($this->documentsToIndex as $collection => $documents) {
+            $this->documentManager->import($collection, $documents);
         }
     }
 
     private function updateDocuments()
     {
-        foreach ($this->documentsToUpdate as $documentToUpdate) {
-            $this->documentManager->delete($documentToUpdate[0], $documentToUpdate[1]);
-            $this->documentManager->index($documentToUpdate[0], $documentToUpdate[2]);
+        foreach ($this->documentsToUpdate as $collection => $documents) {
+            $this->documentManager->import($collection, $documents, 'upsert');
         }
     }
 
