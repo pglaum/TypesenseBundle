@@ -12,26 +12,18 @@ use Doctrine\Persistence\Event\LifecycleEventArgs;
 
 class TypesenseIndexer
 {
-    private $collectionManager;
-    private $transformer;
-    private $managedClassNames;
-
-    private $objetsIdThatCanBeDeletedByObjectHash = [];
-    private $documentsToIndex                     = [];
-    private $documentsToUpdate                    = [];
-    private $documentsToDelete                    = [];
+    private $managedClassNames                     = [];
+    private $objectIdsThatCanBeDeletedByObjectHash = [];
+    private $documentsToIndex                      = [];
+    private $documentsToUpdate                     = [];
+    private $documentsToDelete                     = [];
 
     public function __construct(
-        CollectionManager $collectionManager,
-        DocumentManager $documentManager,
-        DoctrineToTypesenseTransformer $transformer
+        protected CollectionManager $collectionManager,
+        protected DocumentManager $documentManager,
+        protected DoctrineToTypesenseTransformer $transformer
     ) {
-        $this->collectionManager = $collectionManager;
-        $this->documentManager   = $documentManager;
-        $this->transformer       = $transformer;
-
-        $this->managedClassNames  = $this->collectionManager->getManagedClassNames();
-        $this->objectsIDsToDelete = [];
+        $this->managedClassNames = $this->collectionManager->getManagedClassNames();
     }
 
     public function postPersist(LifecycleEventArgs $args)
@@ -88,7 +80,7 @@ class TypesenseIndexer
 
         $data = $this->transformer->convert($entity);
 
-        $this->objetsIdThatCanBeDeletedByObjectHash[spl_object_hash($entity)] = $data['id'];
+        $this->objectIdsThatCanBeDeletedByObjectHash[spl_object_hash($entity)] = $data['id'];
     }
 
     public function postRemove(LifecycleEventArgs $args)
@@ -97,13 +89,13 @@ class TypesenseIndexer
 
         $entityHash = spl_object_hash($entity);
 
-        if (!isset($this->objetsIdThatCanBeDeletedByObjectHash[$entityHash])) {
+        if (!isset($this->objectIdsThatCanBeDeletedByObjectHash[$entityHash])) {
             return;
         }
 
         $collection = $this->getCollectionName($entity);
 
-        $this->documentsToDelete[] = [$collection, $this->objetsIdThatCanBeDeletedByObjectHash[$entityHash]];
+        $this->documentsToDelete[] = [$collection, $this->objectIdsThatCanBeDeletedByObjectHash[$entityHash]];
     }
 
     public function postFlush()
